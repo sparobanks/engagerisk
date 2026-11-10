@@ -1,0 +1,51 @@
+{
+  "window_weeks": 6,
+  "test_students": 800,
+  "disengaged_rate": 0.24,
+  "lightgbm": {
+    "roc_auc": 0.915,
+    "pr_auc": 0.767,
+    "brier": 0.097,
+    "calibration_error": 0.059
+  },
+  "logistic_baseline": {
+    "roc_auc": 0.935,
+    "pr_auc": 0.817,
+    "brier": 0.085,
+    "calibration_error": 0.027
+  },
+  "early_warning": [
+    {
+      "weeks_of_data": 3,
+      "roc_auc": 0.854,
+      "disengagers_caught_in_top_20pct": 0.542
+    },
+    {
+      "weeks_of_data": 6,
+      "roc_auc": 0.935,
+      "disengagers_caught_in_top_20pct": 0.667
+    },
+    {
+      "weeks_of_data": 9,
+      "roc_auc": 0.972,
+      "disengagers_caught_in_top_20pct": 0.74
+    }
+  ],
+  "fairness_by_group": {
+    "A": {
+      "students": 407,
+      "roc_auc": 0.917,
+      "disengagers_caught_in_top_20pct": 0.667,
+      "flag_rate": 0.199,
+      "base_rate": 0.199
+    },
+    "B": {
+      "students": 393,
+      "roc_auc": 0.911,
+      "disengagers_caught_in_top_20pct": 0.631,
+      "flag_rate": 0.201,
+      "base_rate": 0.282
+    }
+  },
+  "deployed_model": "logistic"
+}

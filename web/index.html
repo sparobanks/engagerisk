@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EngageRisk</title>
+<style>
+  :root{--ink:#1f2630;--muted:#5d6670;--line:#dde1e6;--bg:#f5f7fa;--card:#fff;--brand:#2a4d8f;
+        --high:#b4232a;--med:#b5730f;--low:#3a7d44}
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink);background:var(--bg)}
+  header{background:var(--brand);color:#fff;padding:14px 18px;display:flex;align-items:center;gap:10px}
+  header b{font-size:17px}header span{color:#c4d2ec;font-size:13px}
+  main{max-width:900px;margin:0 auto;padding:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:12px 0}
+  label{display:block;font-size:13px;color:var(--muted);margin:8px 0 4px}
+  input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:7px;font-size:15px}
+  button{background:var(--brand);color:#fff;border:0;border-radius:7px;padding:9px 16px;font-size:15px;cursor:pointer}
+  button:hover{filter:brightness(1.08)}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .counts{display:flex;gap:10px;margin:4px 0 2px}
+  .chip{font-size:13px;padding:3px 10px;border-radius:999px;color:#fff}
+  .chip.high{background:var(--high)}.chip.medium{background:var(--med)}.chip.low{background:var(--low)}
+  .stu{border-left:4px solid var(--line);cursor:pointer}
+  .stu.high{border-left-color:var(--high)}.stu.medium{border-left-color:var(--med)}.stu.low{border-left-color:var(--low)}
+  .stu h3{margin:.1em 0 .2em;font-size:16px;display:flex;justify-content:space-between;align-items:center}
+  .risk{font-variant-numeric:tabular-nums}
+  .tag{font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;color:#fff;text-transform:uppercase}
+  .tag.high{background:var(--high)}.tag.medium{background:var(--med)}.tag.low{background:var(--low)}
+  .reasons{color:var(--muted);font-size:14px}
+  .detail{margin-top:12px;border-top:1px dashed var(--line);padding-top:12px;display:none}
+  .detail h4{margin:.4em 0 .2em;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+  .hide{display:none}.err{color:var(--high);font-size:14px;margin-top:8px}
+  .by{font-size:12px;color:var(--muted);margin-top:6px}
+  svg{display:block}
+</style>
+</head>
+<body>
+<header><b>EngageRisk</b><span>early warning for student disengagement</span></header>
+<main>
+  <div id="loginCard" class="card">
+    <h2 style="margin-top:0">Sign in</h2>
+    <label for="u">Username</label><input id="u" value="tutor" autocomplete="username">
+    <label for="p">Password</label><input id="p" type="password" value="engagerisk" autocomplete="current-password">
+    <div style="margin-top:12px"><button onclick="login()">Sign in</button></div>
+    <div id="loginErr" class="err"></div>
+  </div>
+
+  <div id="app" class="hide">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <div class="meta" style="color:var(--muted);font-size:13px">Model: <b id="model"></b> · first 6 weeks of the term</div>
+        <div class="counts" id="counts"></div>
+      </div>
+      <button onclick="logout()" style="background:#5d6670">Sign out</button>
+    </div>
+    <div id="list"></div>
+  </div>
+</main>
+<script>
+let TOKEN=null;
+function spark(vals){
+  if(!vals||!vals.length) return "";
+  const w=90,h=24,max=Math.max(...vals,1),step=w/(vals.length-1||1);
+  const pts=vals.map((v,i)=>`${(i*step).toFixed(1)},${(h-(v/max)*h).toFixed(1)}`).join(" ");
+  return `<svg width="${w}" height="${h}"><polyline fill="none" stroke="#2a4d8f" stroke-width="1.5" points="${pts}"/></svg>`;
+}
+async function login(){
+  document.getElementById('loginErr').textContent='';
+  const r=await fetch('login',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({username:u.value,password:p.value})});
+  if(!r.ok){document.getElementById('loginErr').textContent='Wrong username or password.';return;}
+  TOKEN=(await r.json()).token;
+  document.getElementById('loginCard').classList.add('hide');
+  document.getElementById('app').classList.remove('hide');
+  load();
+}
+function logout(){TOKEN=null;location.reload();}
+async function load(){
+  const r=await fetch('cohort',{headers:{Authorization:'Bearer '+TOKEN}});
+  const d=await r.json();
+  document.getElementById('model').textContent=d.model;
+  document.getElementById('counts').innerHTML=
+    `<span class="chip high">${d.counts.high} high</span>
+     <span class="chip medium">${d.counts.medium} medium</span>
+     <span class="chip low">${d.counts.low} low</span>`;
+  const list=document.getElementById('list'); list.innerHTML='';
+  d.students.forEach(s=>{
+    const el=document.createElement('div');
+    el.className='card stu '+s.band;
+    el.innerHTML=`<h3><span>${s.name}</span>
+        <span><span class="risk">${Math.round(s.risk*100)}%</span> <span class="tag ${s.band}">${s.band}</span></span></h3>
+      <div class="reasons">${s.reasons.length?('Signs: '+s.reasons.join(', ')):'No clear warning signs'}</div>
+      <div class="detail" id="d${s.id}"></div>`;
+    el.onclick=()=>toggle(s.id);
+    list.appendChild(el);
+  });
+}
+async function toggle(id){
+  const box=document.getElementById('d'+id);
+  if(box.style.display==='block'){box.style.display='none';return;}
+  const r=await fetch('student/'+id,{headers:{Authorization:'Bearer '+TOKEN}});
+  const s=await r.json();
+  box.innerHTML=`<h4>Logins, weeks 1 to 6</h4>${spark(s.weekly_logins)}
+    <h4>For the tutor</h4><div>${s.tutor}</div>
+    <h4>For student support</h4><div>${s.support}</div>
+    <div class="by">Written by: ${s.written_by==='llm'?'language model (checked)':'built-in template'} ·
+      based only on the student's own activity</div>`;
+  box.style.display='block';
+}
+</script>
+</body>
+</html>
